@@ -438,3 +438,50 @@ Ground = VEnvironment({
     "if": VCoreOperative(_if),
     "time": VCoreOperative(_time),
 })
+
+
+def _make_encapsulation_tag(args, env):
+    return VEncapsulationTag()
+
+def _make_encapsulation(args, env):
+    assert isinstance(args, VPair), "not enough arguments"
+    assert isinstance(args.cdr, VPair), "not enough arguments"
+    assert isinstance(args.car, VEncapsulationTag), "must be an encapsulation tag"
+
+    tag = args.car
+    assert isinstance(tag, VEncapsulationTag)
+
+    return VEncapsulation(tag, args.cdr.car)
+
+def _encapsulation_taggedp(args, env):
+    assert isinstance(args, VPair), "not enough arguments"
+    assert isinstance(args.cdr, VPair), "not enough arguments"
+    assert isinstance(args.car, VEncapsulationTag), "must be an encapsulation tag"
+
+    tag = args.car
+    val = args.cdr.car
+
+    if isinstance(val, VEncapsulation) and val.tag is tag:
+        return VTrue()
+    else:
+        return VFalse()
+
+def _deconstruct_encapsulation(args, env):
+    assert isinstance(args, VPair), "not enough arguments"
+    assert isinstance(args.cdr, VPair), "not enough arguments"
+    assert isinstance(args.car, VEncapsulationTag), "must be an encapsulation tag"
+
+    tag = args.car
+    val = args.cdr.car
+    assert isinstance(val, VEncapsulation), "must be an encapsulation"
+    assert val.tag is tag, "encapsulation type mismatch"
+
+    return val.value
+
+
+Encapsulation = VEnvironment({
+    "make-encapsulation-tag": VApplicative(VCoreOperative(_make_encapsulation_tag)),
+    "make-encapsulation": VApplicative(VCoreOperative(_make_encapsulation)),
+    "encapsulation-tagged?": VApplicative(VCoreOperative(_encapsulation_taggedp)),
+    "deconstruct-encapsulation": VApplicative(VCoreOperative(_deconstruct_encapsulation)),
+}, [Ground])

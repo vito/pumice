@@ -238,6 +238,16 @@ class VTree(VValue):
         return res
 
 
+class VEncapsulation(VValue):
+    def __init__(self, tag, value):
+        self.tag = tag
+        self.value = value
+
+
+class VEncapsulationTag(VValue):
+    pass
+
+
 def show_pair(what):
     if isinstance(what, VPair):
         if isinstance(what.cdr, VPair):

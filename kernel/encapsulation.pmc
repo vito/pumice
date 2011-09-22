@@ -1,0 +1,14 @@
+(set! ground make-encapsulation-type
+  (lambda ()
+    (define tag (make-encapsulation-tag))
+
+    (defn (construct v)
+      (make-encapsulation tag v))
+
+    (defn (predicate? e)
+      (encapsulation-tagged? tag e))
+
+    (defn (deconstruct e)
+      (deconstruct-encapsulation tag e))
+
+    (list construct predicate? deconstruct)))

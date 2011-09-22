@@ -2,20 +2,22 @@ import py
 import sys
 
 from pumice.interpreter import load_file, repl
-from pumice.nucleus import Ground
+from pumice.nucleus import Ground, Encapsulation
 
 
-BootFile = str(py.path.local(__file__).dirpath().dirpath().join('kernel').join('boot.pmc'))
-
+def load_kernel(which, env):
+    return load_file("kernel/%s" % which, env)
 
 def main(argv):
     if len(argv) == 2:
-        load_file(BootFile, Ground)
+        load_kernel('boot.pmc', Ground)
+        load_kernel('encapsulation.pmc', Encapsulation)
         load_file(argv[1], Ground)
 
         return 0
     elif len(argv) == 1:
-        load_file(BootFile, Ground)
+        load_kernel('boot.pmc', Ground)
+        load_kernel('encapsulation.pmc', Encapsulation)
 
         try:
             repl(Ground)
