@@ -1,0 +1,57 @@
+IGNORE: "([ \f\t\n]*)|(;[^\n]*\n)";
+
+program : sexps EOF
+        ;
+
+sexps  : sexp >sexps<?
+       ;
+
+sexp   : <number>
+       | <string>
+       | <constant>
+       | <symbol>
+       | <list>
+       ;
+
+number  : DECINTEGERLITERAL
+        | HEXINTEGERLITERAL
+        | OCTINTEGERLITERAL
+        ;
+
+DECINTEGERLITERAL  : "((([0-9]+)(\.[0-9]+)?)|(\.[0-9]+))([eE][\+\-]?[0-9]+)?"
+                   ;
+
+HEXINTEGERLITERAL  : "0[xX][0-9a-fA-F]+"
+                   ;
+
+OCTINTEGERLITERAL  : "0o[0-7]+"
+                   ;
+
+string  : STRINGLITERAL
+        ;
+
+STRINGLITERAL :  "\"([^\"\\]|\\.)*\""
+              ;
+
+constant  : CTRUE
+          | CFALSE
+          | CIGNORE
+          | CINERT
+          ;
+
+CTRUE   : "#t" ;
+CFALSE  : "#f" ;
+CIGNORE : "#ignore" ;
+CINERT  : "#inert" ;
+
+symbol  : SYMBOLNAME;
+
+SYMBOLNAME  : "[a-zA-Z0-9=!@#$%\^&*<>/\-\+\|\?\\]+";
+
+list  : ["("] pair [")"]
+      | ["("] [")"]
+      ;
+
+pair  : sexp ["."] sexp
+      | sexp pair?
+      ;
