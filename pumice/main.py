@@ -1,7 +1,7 @@
 import py
 import sys
 
-from pumice.interpreter import load_file
+from pumice.interpreter import load_file, repl
 from pumice.nucleus import Ground
 
 
@@ -12,6 +12,13 @@ def main(argv):
     if len(argv) == 2:
         load_file(BootFile, Ground)
         load_file(argv[1], Ground)
+
+        return 0
+    elif len(argv) == 1:
+        try:
+            repl(Ground)
+        except SystemExit:
+            print "\nSee ya!"
 
         return 0
     else:
