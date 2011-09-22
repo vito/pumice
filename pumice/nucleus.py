@@ -8,7 +8,7 @@ def _multiply(args, env):
     num = 0
     while isinstance(x, VPair):
         v = x.car
-        assert isinstance(v, VNumber)
+        assert isinstance(v, VNumber), "must be numeric"
         num *= v.value
         x = x.cdr
 
@@ -19,41 +19,41 @@ def _add(args, env):
     num = 0
     while isinstance(x, VPair):
         v = x.car
-        assert isinstance(v, VNumber)
+        assert isinstance(v, VNumber), "must be numeric"
         num += v.value
         x = x.cdr
 
     return VNumber(num)
 
 def _subtract(args, env):
-    assert isinstance(args, VPair)
+    assert isinstance(args, VPair), "not enough arguments"
 
     start = args.car
-    assert isinstance(start, VNumber)
+    assert isinstance(start, VNumber), "must be numeric"
 
     num = start.value
 
     x = args.cdr
     while isinstance(x, VPair):
         v = x.car
-        assert isinstance(v, VNumber)
+        assert isinstance(v, VNumber), "must be numeric"
         num -= v.value
         x = x.cdr
 
     return VNumber(num)
 
 def _eq(args, env):
-    assert isinstance(args, VPair)
+    assert isinstance(args, VPair), "not enough arguments"
 
     start = args.car
-    assert isinstance(start, VNumber)
+    assert isinstance(start, VNumber), "must be numeric"
 
     num = start.value
 
     x = args.cdr
     while isinstance(x, VPair):
         v = x.car
-        assert isinstance(v, VNumber)
+        assert isinstance(v, VNumber), "must be numeric"
 
         if v.value != num:
             return VFalse()
@@ -63,17 +63,17 @@ def _eq(args, env):
     return VTrue()
 
 def _lt(args, env):
-    assert isinstance(args, VPair)
+    assert isinstance(args, VPair), "not enough arguments"
 
     start = args.car
-    assert isinstance(start, VNumber)
+    assert isinstance(start, VNumber), "must be numeric"
 
     num = start.value
 
     x = args.cdr
     while isinstance(x, VPair):
         v = x.car
-        assert isinstance(v, VNumber)
+        assert isinstance(v, VNumber), "must be numeric"
 
         if v.value > num:
             num = v.value
@@ -85,17 +85,17 @@ def _lt(args, env):
     return VTrue()
 
 def _gt(args, env):
-    assert isinstance(args, VPair)
+    assert isinstance(args, VPair), "not enough arguments"
 
     start = args.car
-    assert isinstance(start, VNumber)
+    assert isinstance(start, VNumber), "must be numeric"
 
     num = start.value
 
     x = args.cdr
     while isinstance(x, VPair):
         v = x.car
-        assert isinstance(v, VNumber)
+        assert isinstance(v, VNumber), "must be numeric"
 
         if v.value < num:
             num = v.value
@@ -107,17 +107,17 @@ def _gt(args, env):
     return VTrue()
 
 def _lte(args, env):
-    assert isinstance(args, VPair)
+    assert isinstance(args, VPair), "not enough arguments"
 
     start = args.car
-    assert isinstance(start, VNumber)
+    assert isinstance(start, VNumber), "must be numeric"
 
     num = start.value
 
     x = args.cdr
     while isinstance(x, VPair):
         v = x.car
-        assert isinstance(v, VNumber)
+        assert isinstance(v, VNumber), "must be numeric"
 
         if v.value >= num:
             num = v.value
@@ -129,17 +129,17 @@ def _lte(args, env):
     return VTrue()
 
 def _gte(args, env):
-    assert isinstance(args, VPair)
+    assert isinstance(args, VPair), "not enough arguments"
 
     start = args.car
-    assert isinstance(start, VNumber)
+    assert isinstance(start, VNumber), "must be numeric"
 
     num = start.value
 
     x = args.cdr
     while isinstance(x, VPair):
         v = x.car
-        assert isinstance(v, VNumber)
+        assert isinstance(v, VNumber), "must be numeric"
 
         if v.value <= num:
             num = v.value
@@ -151,13 +151,13 @@ def _gte(args, env):
     return VTrue()
 
 def _print(args, env):
-    assert isinstance(args, VPair)
+    assert isinstance(args, VPair), "not enough arguments"
     print(args.car.show())
     return VInert()
 
 def _define(args, env):
-    assert isinstance(args, VPair)
-    assert isinstance(args.cdr, VPair)
+    assert isinstance(args, VPair), "not enough arguments"
+    assert isinstance(args.cdr, VPair), "not enough arguments"
 
     pat = args.car
     val = args.cdr.car.evaluate(env)
@@ -165,25 +165,25 @@ def _define(args, env):
     return VInert()
 
 def _vau(args, env):
-    assert isinstance(args, VPair)
+    assert isinstance(args, VPair), "not enough arguments"
     formals = args.car
     eformal = args.cdr.car
     body = args.cdr.cdr.car
     return VOperative(formals, eformal, body, env)
 
 def _wrap(args, env):
-    assert isinstance(args, VPair)
+    assert isinstance(args, VPair), "not enough arguments"
     return VApplicative(args.car)
 
 def _unwrap(args, env):
-    assert isinstance(args, VPair)
-    assert isinstance(args.car, VApplicative)
+    assert isinstance(args, VPair), "not enough arguments"
+    assert isinstance(args.car, VApplicative), "must be an applicative"
     return args.car.unwrap()
 
 def _if(args, env):
-    assert isinstance(args, VPair)
-    assert isinstance(args.cdr, VPair)
-    assert isinstance(args.cdr.cdr, VPair)
+    assert isinstance(args, VPair), "not enough arguments"
+    assert isinstance(args.cdr, VPair), "not enough arguments"
+    assert isinstance(args.cdr.cdr, VPair), "not enough arguments"
 
     cond = args.car.evaluate(env)
     yes = args.cdr.car
@@ -198,11 +198,11 @@ def _if(args, env):
         return VInert()
 
 def _eval(args, env):
-    assert isinstance(args, VPair)
+    assert isinstance(args, VPair), "not enough arguments"
     return args.car.evaluate(args.cdr.car)
 
 def _time(args, env):
-    assert isinstance(args, VPair)
+    assert isinstance(args, VPair), "not enough arguments"
 
     a = time.clock()
     r = args.car.evaluate(env)
@@ -210,7 +210,7 @@ def _time(args, env):
     return r
 
 def _booleanp(args, env):
-    assert isinstance(args, VPair)
+    assert isinstance(args, VPair), "not enough arguments"
 
     if isinstance(args.car, VTrue) or \
             isinstance(args.car, VFalse):
@@ -219,7 +219,7 @@ def _booleanp(args, env):
         return VFalse()
 
 def _eqp(args, env):
-    assert isinstance(args, VPair)
+    assert isinstance(args, VPair), "not enough arguments"
 
     if args.car.eq(args.cdr.car):
         return VTrue()
@@ -227,7 +227,7 @@ def _eqp(args, env):
         return VFalse()
 
 def _equalp(args, env):
-    assert isinstance(args, VPair)
+    assert isinstance(args, VPair), "not enough arguments"
 
     if args.car.equal(args.cdr.car):
         return VTrue()
@@ -235,7 +235,7 @@ def _equalp(args, env):
         return VFalse()
 
 def _symbolp(args, env):
-    assert isinstance(args, VPair)
+    assert isinstance(args, VPair), "not enough arguments"
 
     if isinstance(args.car, VSymbol):
         return VTrue()
@@ -243,7 +243,7 @@ def _symbolp(args, env):
         return VFalse()
 
 def _stringp(args, env):
-    assert isinstance(args, VPair)
+    assert isinstance(args, VPair), "not enough arguments"
 
     if isinstance(args.car, VString):
         return VTrue()
@@ -251,7 +251,7 @@ def _stringp(args, env):
         return VFalse()
 
 def _inertp(args, env):
-    assert isinstance(args, VPair)
+    assert isinstance(args, VPair), "not enough arguments"
 
     if isinstance(args.car, VInert):
         return VTrue()
@@ -259,7 +259,7 @@ def _inertp(args, env):
         return VFalse()
 
 def _pairp(args, env):
-    assert isinstance(args, VPair)
+    assert isinstance(args, VPair), "not enough arguments"
 
     if isinstance(args.car, VPair):
         return VTrue()
@@ -267,7 +267,7 @@ def _pairp(args, env):
         return VFalse()
 
 def _nullp(args, env):
-    assert isinstance(args, VPair)
+    assert isinstance(args, VPair), "not enough arguments"
 
     if isinstance(args.car, VNull):
         return VTrue()
@@ -275,7 +275,7 @@ def _nullp(args, env):
         return VFalse()
 
 def _ignorep(args, env):
-    assert isinstance(args, VPair)
+    assert isinstance(args, VPair), "not enough arguments"
 
     if isinstance(args.car, VIgnore):
         return VTrue()
@@ -283,7 +283,7 @@ def _ignorep(args, env):
         return VFalse()
 
 def _numberp(args, env):
-    assert isinstance(args, VPair)
+    assert isinstance(args, VPair), "not enough arguments"
 
     if isinstance(args.car, VNumber):
         return VTrue()
@@ -291,7 +291,7 @@ def _numberp(args, env):
         return VFalse()
 
 def _operativep(args, env):
-    assert isinstance(args, VPair)
+    assert isinstance(args, VPair), "not enough arguments"
 
     if isinstance(args.car, VOperative):
         return VTrue()
@@ -299,7 +299,7 @@ def _operativep(args, env):
         return VFalse()
 
 def _applicativep(args, env):
-    assert isinstance(args, VPair)
+    assert isinstance(args, VPair), "not enough arguments"
 
     if isinstance(args.car, VApplicative):
         return VTrue()
@@ -307,7 +307,7 @@ def _applicativep(args, env):
         return VFalse()
 
 def _environmentp(args, env):
-    assert isinstance(args, VPair)
+    assert isinstance(args, VPair), "not enough arguments"
 
     if isinstance(args.car, VEnvironment):
         return VTrue()
@@ -315,7 +315,7 @@ def _environmentp(args, env):
         return VFalse()
 
 def _combinerp(args, env):
-    assert isinstance(args, VPair)
+    assert isinstance(args, VPair), "not enough arguments"
 
     if isinstance(args.car, VOperative) or \
             isinstance(args.car, VApplicative):
@@ -324,19 +324,19 @@ def _combinerp(args, env):
         return VFalse()
 
 def _cons(args, env):
-    assert isinstance(args, VPair)
-    assert isinstance(args.cdr, VPair)
+    assert isinstance(args, VPair), "not enough arguments"
+    assert isinstance(args.cdr, VPair), "not enough arguments"
     return VPair(args.car, args.cdr.car)
 
 def _make_environment(args, env):
-    assert isinstance(args, VList)
+    assert isinstance(args, VList), "non-list arguments"
     return VEnvironment({}, args.to_list())
 
 def _bindsp(args, env):
-    assert isinstance(args, VPair)
+    assert isinstance(args, VPair), "not enough arguments"
 
     where = args.car.evaluate(env)
-    assert isinstance(where, VEnvironment)
+    assert isinstance(where, VEnvironment), "must be an environment"
 
     syms = args.cdr
     while isinstance(syms, VPair):
@@ -350,17 +350,17 @@ def _bindsp(args, env):
     return VTrue()
 
 def _max(args, env):
-    assert isinstance(args, VPair)
+    assert isinstance(args, VPair), "not enough arguments"
 
     start = args.car
-    assert isinstance(start, VNumber)
+    assert isinstance(start, VNumber), "must be numeric"
 
     max = start
 
     x = args.cdr
     while isinstance(x, VPair):
         v = x.car
-        assert isinstance(v, VNumber)
+        assert isinstance(v, VNumber), "must be numeric"
 
         if v.value > max.value:
             max = v
@@ -370,17 +370,17 @@ def _max(args, env):
     return max
 
 def _min(args, env):
-    assert isinstance(args, VPair)
+    assert isinstance(args, VPair), "not enough arguments"
 
     start = args.car
-    assert isinstance(start, VNumber)
+    assert isinstance(start, VNumber), "must be numeric"
 
     min = start
 
     x = args.cdr
     while isinstance(x, VPair):
         v = x.car
-        assert isinstance(v, VNumber)
+        assert isinstance(v, VNumber), "must be numeric"
 
         if v.value < min.value:
             min = v
