@@ -15,6 +15,8 @@ def main(argv):
 
         return 0
     elif len(argv) == 1:
+        load_file(BootFile, Ground)
+
         try:
             repl(Ground)
         except SystemExit:
