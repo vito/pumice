@@ -213,6 +213,8 @@
 (define make-hummus-static-environment
   (lambda () (get-current-environment)))
 
+(define ground (get-current-environment))
+
 (define let*
   (vau (bindings . body) env
     (eval (if (null? bindings)
