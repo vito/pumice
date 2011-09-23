@@ -1,6 +1,7 @@
 import time
 
 from pumice.values import *
+from pumice.interpreter import load_file
 
 
 def _multiply(args, env):
@@ -346,7 +347,7 @@ def _bindsp(args, env):
                 return VFalse()
 
         syms = syms.cdr
-    
+
     return VTrue()
 
 def _max(args, env):
@@ -389,8 +390,52 @@ def _min(args, env):
 
     return min
 
+def _load(args, env):
+    assert isinstance(args, VPair), "not enough arguments"
 
-Ground = VEnvironment({
+    val = args.car
+    assert isinstance(val, VString), "must be a string"
+
+    return load_file(val.value, env)
+
+def _string2symbol(args, env):
+    assert isinstance(args, VPair), "not enough arguments"
+
+    val = args.car
+    assert isinstance(val, VString), "must be a string"
+
+    return VSymbol(val.value)
+
+def _symbol2string(args, env):
+    assert isinstance(args, VPair), "not enough arguments"
+
+    val = args.car
+    assert isinstance(val, VSymbol), "must be a symbol"
+
+    return VString(val.name)
+
+def _join(args, env):
+    assert isinstance(args, VPair), "non-list arguments"
+
+    val = args.car
+    assert isinstance(val, VString), "must be a string"
+
+    delim = val.value
+
+    strs = []
+    vals = args.cdr
+    while isinstance(vals, VPair):
+        val = vals.car
+        assert isinstance(val, VString), "must be a string"
+
+        strs.append(val.value)
+
+        vals = vals.cdr
+
+    return VString(delim.join(strs))
+
+
+Ground = {
     # basic predicates
     "boolean?": VApplicative(VCoreOperative(_booleanp)),
     "symbol?": VApplicative(VCoreOperative(_symbolp)),
@@ -437,7 +482,13 @@ Ground = VEnvironment({
     "print": VApplicative(VCoreOperative(_print)),
     "if": VCoreOperative(_if),
     "time": VCoreOperative(_time),
-})
+    "load": VApplicative(VCoreOperative(_load)),
+
+    # string
+    "string->symbol": VApplicative(VCoreOperative(_string2symbol)),
+    "symbol->string": VApplicative(VCoreOperative(_symbol2string)),
+    "join": VApplicative(VCoreOperative(_join)),
+}
 
 
 def _make_encapsulation_tag(args, env):
@@ -479,9 +530,23 @@ def _deconstruct_encapsulation(args, env):
     return val.value
 
 
-Encapsulation = VEnvironment({
+Encapsulation = {
     "make-encapsulation-tag": VApplicative(VCoreOperative(_make_encapsulation_tag)),
     "make-encapsulation": VApplicative(VCoreOperative(_make_encapsulation)),
     "encapsulation-tagged?": VApplicative(VCoreOperative(_encapsulation_taggedp)),
     "deconstruct-encapsulation": VApplicative(VCoreOperative(_deconstruct_encapsulation)),
-}, [Ground])
+}
+
+
+def load_kernel(which, env):
+    return load_file("kernel/%s" % which, env)
+
+
+def load():
+    ground = VEnvironment(Ground)
+    load_kernel('boot.pmc', ground)
+    load_kernel('encapsulation.pmc', VEnvironment(Encapsulation, [ground]))
+    load_kernel('record.pmc', ground)
+    load_kernel('object.pmc', ground)
+    load_kernel('class.pmc', ground)
+    return ground
