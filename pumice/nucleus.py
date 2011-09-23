@@ -275,6 +275,14 @@ def _nullp(args, env):
     else:
         return VFalse()
 
+def _listp(args, env):
+    assert isinstance(args, VPair), "not enough arguments"
+
+    if isinstance(args.car, VList):
+        return VTrue()
+    else:
+        return VFalse()
+
 def _ignorep(args, env):
     assert isinstance(args, VPair), "not enough arguments"
 
@@ -441,9 +449,10 @@ Ground = {
     "symbol?": VApplicative(VCoreOperative(_symbolp)),
     "string?": VApplicative(VCoreOperative(_stringp)),
     "inert?": VApplicative(VCoreOperative(_inertp)),
+    "environment?": VApplicative(VCoreOperative(_environmentp)),
     "pair?": VApplicative(VCoreOperative(_pairp)),
     "null?": VApplicative(VCoreOperative(_nullp)),
-    "environment?": VApplicative(VCoreOperative(_environmentp)),
+    "list?": VApplicative(VCoreOperative(_pairp)),
     "ignore?": VApplicative(VCoreOperative(_ignorep)),
     "number?": VApplicative(VCoreOperative(_numberp)),
     "operative?": VApplicative(VCoreOperative(_operativep)),

@@ -210,7 +210,7 @@
 
 (define get-current-environment (wrap (vau () e e)))
 
-(define make-hummus-static-environment
+(define make-ground-static-environment
   (lambda () (get-current-environment)))
 
 (define ground (get-current-environment))
