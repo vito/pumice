@@ -1,0 +1,99 @@
+(defn (make-foo given-a given-b with-foo?)
+  (make-object
+    (property a given-a)
+    (property b given-b)
+
+    (public (double-a)
+      (increase-a-by a))
+
+    (public (double-b)
+      (increase-b-by b))
+
+    (public (increase-a-by by)
+      (set a (+ a by)))
+
+    (public (increase-b-by by)
+      (set b (+ b by)))
+
+    (if with-foo?
+      (public (foo) a)
+      #f)
+
+    (public (get-slots)
+      (list a b))))
+
+(define x (make-foo 1 2 #f))
+(define y (make-foo 10 20 #t))
+
+(print "initial")
+(print (send x get-slots))
+(print (send y get-slots))
+
+(print "doubling a in x")
+(send x double-a)
+(print (send x get-slots))
+(print (send y get-slots))
+
+(print "doubling b in x")
+(send x double-b)
+(print (send x get-slots))
+(print (send y get-slots))
+
+(print "doubling a in y")
+(send y double-a)
+(print (send x get-slots))
+(print (send y get-slots))
+
+(print "doubling b in y")
+(send y double-b)
+(print (send x get-slots))
+(print (send y get-slots))
+
+(print "adding 10 to a in y")
+(let ((increase-by 10))
+  (send y increase-a-by increase-by)
+  (print (send x get-slots))
+  (print (send y get-slots)))
+
+(print "getting foo of x and y")
+(bind ((message-not-understood? (e)
+          (print (cons "caught" (send e message)))
+          (restart ignore)))
+  (with-restarts ((ignore () #inert))
+    (print (send x foo))))
+(print (send y foo))
+
+(print "delegating x to y")
+(send x delegate-to y)
+
+(print "getting foo of x and y")
+(print (send x foo))
+(print (send y foo))
+
+; output:
+;
+; initial
+; (1 2)
+; (10 20)
+; doubling a in x
+; (2 2)
+; (10 20)
+; doubling b in x
+; (2 4)
+; (10 20)
+; doubling a in y
+; (2 4)
+; (20 20)
+; doubling b in y
+; (2 4)
+; (20 40)
+; adding 10 to a in y
+; (2 4)
+; (30 40)
+; getting foo of x and y
+; ("caught" . "The message `foo' is not understood by <encapsulation>.")
+; 30
+; delegating x to y
+; getting foo of x and y
+; 2
+; 30
