@@ -1,0 +1,30 @@
+(provide! (generator)
+  (defn (aux x)
+    (define here (get-current-environment))
+
+    (define yield
+      (lambda (v)
+        (call/cc
+          (lambda (continue)
+            (set! here x
+              (lambda (#ignore)
+                (apply-continuation continue #inert)))
+
+            (apply-continuation return v)))))
+
+    (lambda ()
+      (call/cc
+        (lambda (ret)
+          (set! here return ret)
+          (if (combiner? x)
+            (sequence
+              (x yield)
+              (set! here x #inert)
+              (apply-continuation return #inert))
+            #inert)))))
+
+  (define quote (vau (e) #ignore e))
+
+  (define generator
+    (vau body e
+      (eval (list aux (list* lambda (quote (yield)) body)) e))))

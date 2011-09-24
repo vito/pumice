@@ -606,4 +606,5 @@ def load():
     load_kernel('record.pmc', ground, ignore)
     load_kernel('object.pmc', ground, ignore)
     load_kernel('class.pmc', ground, ignore)
+    load_kernel('generator.pmc', ground, ignore)
     return ground
