@@ -294,3 +294,8 @@
                     (cons lambda (cons as body)))
               e))
       (eval (cons define (cons name body)) e))))
+
+(define loop
+  (vau body e
+    (eval (cons sequence body) e)
+    (eval (cons loop body) e)))
