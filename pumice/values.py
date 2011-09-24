@@ -1,6 +1,9 @@
 class VValue:
-    def evaluate(self, env):
-        return self
+    def evaluate(self, env, k):
+        return k.call(self)
+
+    def evaluateAll(self, env, k):
+        return k.call(self)
 
     def show(self):
         return str(self)
@@ -12,6 +15,53 @@ class VValue:
         return self is other
 
 
+class VContinuation(VValue):
+    def __init__(self, cont, args = []):
+        self.cont = cont
+        self.args = args
+        self.applied = None
+
+    def is_ready(self):
+        if self.applied:
+            return True
+        else:
+            return False
+
+    def call(self, val):
+        self.applied = val
+        return self
+
+    def go(self):
+        return self.cont(self.applied, self.args)
+
+    def extend(self, app, env):
+        return VExtendedContinuation(self, app, env)
+
+
+class VExtendedContinuation(VContinuation):
+    def __init__(self, parent, applicative, env):
+        self.parent = parent
+        self.operative = applicative.unwrap()
+        self.env = env
+
+    def is_ready(self):
+        return self.parent.is_ready()
+
+    def call(self, val):
+        self.parent.call(val)
+        return self
+
+    def go(self):
+        return self.operative.apply(
+            self.env,
+            VPair(self.parent.applied, VNull()),
+            VContinuation(_callParent, [self.parent])
+        )
+
+def _callParent(val, k):
+    return k[0].call(val)
+
+
 class VList(VValue):
     pass
 
@@ -19,9 +69,6 @@ class VList(VValue):
 class VNull(VList):
     def equal(self, other):
         return self is other or isinstance(other, VNull)
-
-    def evaluateAll(self, env):
-        return self
 
     def show(self):
         return "()"
@@ -41,19 +88,11 @@ class VPair(VList):
                 self.car.equal(other.car) and \
                 self.cdr.equal(other.cdr)
 
-    def evaluate(self, env):
-        c = self.car.evaluate(env)
+    def evaluate(self, env, k):
+        return self.car.evaluate(env, VContinuation(_apply, [self.cdr, env, k]))
 
-        if isinstance(c, VOperative):
-            return c.apply(env, self.cdr)
-        elif isinstance(c, VApplicative):
-            return c.unwrap().apply(env, self.cdr.evaluateAll(env))
-        else:
-            print("Not applicable: %s" % c.show())
-            return VInert() # TODO: error
-
-    def evaluateAll(self, env):
-        return VPair(self.car.evaluate(env), self.cdr.evaluateAll(env))
+    def evaluateAll(self, env, k):
+        return self.car.evaluate(env, VContinuation(_evalTail, [self.cdr, env, k]))
 
     def show(self):
         return "(%s)" % show_pair(self)
@@ -66,6 +105,29 @@ class VPair(VList):
             return rest
         else:
             return [self.car]
+
+def _apply(c, args):
+    params, env, k = args
+    if isinstance(c, VOperative):
+        return c.apply(env, params, k)
+    elif isinstance(c, VApplicative):
+        return params.evaluateAll(env, VContinuation(_applyApp, [c.unwrap(), env, k]))
+    else:
+        print("Not applicable: %s" % c.show())
+        return k.call(VInert())
+
+def _applyApp(params, args):
+    c, env, k = args
+    assert isinstance(c, VOperative)
+    return c.apply(env, params, k)
+
+def _evalTail(h, args):
+    rest, env, k = args
+    return rest.evaluateAll(env, VContinuation(_makePair, [h, k]))
+
+def _makePair(t, args):
+    h, k = args
+    return k.call(VPair(h, t))
 
 
 class VTrue(VValue):
@@ -107,19 +169,19 @@ class VOperative(VValue):
         self.body = body
         self.static_environment = static_environment
 
-    def apply(self, env, args):
+    def apply(self, env, args, k):
         newEnv = VEnvironment({}, [self.static_environment])
         newEnv.define(self.formals, args)
         newEnv.define(self.eformal, env)
-        return self.body.evaluate(newEnv)
+        return self.body.evaluate(newEnv, k)
 
 
 class VCoreOperative(VOperative):
     def __init__(self, fun):
         self.function = fun
 
-    def apply(self, env, args):
-        return self.function(args, env)
+    def apply(self, env, args, k):
+        return self.function(args, env, k)
 
 
 class VApplicative(VValue):
@@ -186,13 +248,13 @@ class VSymbol(VValue):
                 isinstance(other, VSymbol) and \
                 self.name == other.name
 
-    def evaluate(self, env):
+    def evaluate(self, env, k):
         val = env.lookup(self.name)
         if val:
-            return val
+            return k.call(val)
         else:
             print("Unknown symbol: %s" % self.show())
-            return VInert() # TODO: error
+            return k.call(VInert())
 
     def show(self):
         return self.name
@@ -229,13 +291,18 @@ class VTree(VValue):
     def __init__(self, sexps):
         self.sexps = sexps
     
-    def evaluate(self, env):
-        res = VInert()
+    def evaluate(self, env, k):
+        return _evalTree(VInert(), [self, env, k])
 
-        for sexp in self.sexps:
-            res = sexp.evaluate(env)
+def _evalTree(res, args):
+    tree, env, k = args
 
-        return res
+    rest = tree.sexps
+
+    if len(rest) == 0:
+        return k.call(res)
+
+    return rest[0].evaluate(env, VContinuation(_evalTree, [VTree(rest[1:]), env, k]))
 
 
 class VEncapsulation(VValue):

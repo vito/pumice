@@ -1,10 +1,10 @@
 import time
 
 from pumice.values import *
-from pumice.interpreter import load_file
+from pumice.interpreter import load_file, ignore
 
 
-def _multiply(args, env):
+def _multiply(args, env, k):
     x = args
     num = 0
     while isinstance(x, VPair):
@@ -13,9 +13,9 @@ def _multiply(args, env):
         num *= v.value
         x = x.cdr
 
-    return VNumber(num)
+    return k.call(VNumber(num))
 
-def _add(args, env):
+def _add(args, env, k):
     x = args
     num = 0
     while isinstance(x, VPair):
@@ -24,9 +24,9 @@ def _add(args, env):
         num += v.value
         x = x.cdr
 
-    return VNumber(num)
+    return k.call(VNumber(num))
 
-def _subtract(args, env):
+def _subtract(args, env, k):
     assert isinstance(args, VPair), "not enough arguments"
 
     start = args.car
@@ -41,9 +41,9 @@ def _subtract(args, env):
         num -= v.value
         x = x.cdr
 
-    return VNumber(num)
+    return k.call(VNumber(num))
 
-def _eq(args, env):
+def _eq(args, env, k):
     assert isinstance(args, VPair), "not enough arguments"
 
     start = args.car
@@ -57,13 +57,13 @@ def _eq(args, env):
         assert isinstance(v, VNumber), "must be numeric"
 
         if v.value != num:
-            return VFalse()
+            return k.call(VFalse())
 
         x = x.cdr
 
-    return VTrue()
+    return k.call(VTrue())
 
-def _lt(args, env):
+def _lt(args, env, k):
     assert isinstance(args, VPair), "not enough arguments"
 
     start = args.car
@@ -79,13 +79,13 @@ def _lt(args, env):
         if v.value > num:
             num = v.value
         else:
-            return VFalse()
+            return k.call(VFalse())
 
         x = x.cdr
 
-    return VTrue()
+    return k.call(VTrue())
 
-def _gt(args, env):
+def _gt(args, env, k):
     assert isinstance(args, VPair), "not enough arguments"
 
     start = args.car
@@ -101,13 +101,13 @@ def _gt(args, env):
         if v.value < num:
             num = v.value
         else:
-            return VFalse()
+            return k.call(VFalse())
 
         x = x.cdr
 
-    return VTrue()
+    return k.call(VTrue())
 
-def _lte(args, env):
+def _lte(args, env, k):
     assert isinstance(args, VPair), "not enough arguments"
 
     start = args.car
@@ -123,13 +123,13 @@ def _lte(args, env):
         if v.value >= num:
             num = v.value
         else:
-            return VFalse()
+            return k.call(VFalse())
 
         x = x.cdr
 
-    return VTrue()
+    return k.call(VTrue())
 
-def _gte(args, env):
+def _gte(args, env, k):
     assert isinstance(args, VPair), "not enough arguments"
 
     start = args.car
@@ -145,220 +145,262 @@ def _gte(args, env):
         if v.value <= num:
             num = v.value
         else:
-            return VFalse()
+            return k.call(VFalse())
 
         x = x.cdr
 
-    return VTrue()
+    return k.call(VTrue())
 
-def _print(args, env):
+def _print(args, env, k):
     assert isinstance(args, VPair), "not enough arguments"
     print(args.car.show())
-    return VInert()
+    return k.call(VInert())
 
-def _define(args, env):
+def _define(args, env, k):
     assert isinstance(args, VPair), "not enough arguments"
     assert isinstance(args.cdr, VPair), "not enough arguments"
+    return args.cdr.car.evaluate(env, VContinuation(_define2, [args.car, env, k]))
 
-    pat = args.car
-    val = args.cdr.car.evaluate(env)
+def _define2(val, args):
+    pat, env, k = args
     env.define(pat, val)
-    return VInert()
+    return k.call(VInert())
 
-def _vau(args, env):
+def _vau(args, env, k):
     assert isinstance(args, VPair), "not enough arguments"
     formals = args.car
     eformal = args.cdr.car
     body = args.cdr.cdr.car
-    return VOperative(formals, eformal, body, env)
+    return k.call(VOperative(formals, eformal, body, env))
 
-def _wrap(args, env):
+def _wrap(args, env, k):
     assert isinstance(args, VPair), "not enough arguments"
-    return VApplicative(args.car)
+    return k.call(VApplicative(args.car))
 
-def _unwrap(args, env):
+def _unwrap(args, env, k):
     assert isinstance(args, VPair), "not enough arguments"
     assert isinstance(args.car, VApplicative), "must be an applicative"
-    return args.car.unwrap()
+    return k.call(args.car.unwrap())
 
-def _if(args, env):
+def _callcc(args, env, k):
+    assert isinstance(args, VPair), "not enough arguments"
+    return VPair(args.car, VPair(k, VNull())).evaluate(env, k)
+
+def _apply_continuation(args, env, k):
+    assert isinstance(args, VPair), "not enough arguments"
+    assert isinstance(args.cdr, VPair), "not enough arguments"
+
+    cont = args.car
+    assert isinstance(cont, VContinuation)
+
+    return cont.call(args.cdr.car)
+
+def _extend_continuation(args, env, k):
+    assert isinstance(args, VPair), "not enough arguments"
+    assert isinstance(args.cdr, VPair), "not enough arguments"
+
+    cont = args.car
+    assert isinstance(cont, VContinuation)
+
+    applicative = args.cdr.car
+
+    if isinstance(args.cdr.cdr, VPair):
+        env = args.cdr.cdr.car
+    else:
+        env = VEnvironment({})
+
+    return k.call(cont.extend(applicative, env))
+
+def _if(args, env, k):
     assert isinstance(args, VPair), "not enough arguments"
     assert isinstance(args.cdr, VPair), "not enough arguments"
     assert isinstance(args.cdr.cdr, VPair), "not enough arguments"
 
-    cond = args.car.evaluate(env)
-    yes = args.cdr.car
-    no = args.cdr.cdr.car
+    return args.car.evaluate(env, VContinuation(_if2, [args.cdr.car, args.cdr.cdr.car, env, k]))
 
+def _if2(cond, args):
+    yes, no, env, k = args
     if isinstance(cond, VTrue):
-        return yes.evaluate(env)
+        return yes.evaluate(env, k)
     elif isinstance(cond, VFalse):
-        return no.evaluate(env)
+        return no.evaluate(env, k)
     else:
         print("Not boolean: %s" % cond.show())
-        return VInert()
+        return k.call(VInert())
 
-def _eval(args, env):
+def _eval(args, env, k):
     assert isinstance(args, VPair), "not enough arguments"
-    return args.car.evaluate(args.cdr.car)
+    assert isinstance(args.cdr, VPair), "not enough arguments"
+    return args.car.evaluate(args.cdr.car, k)
 
-def _time(args, env):
+def _time(args, env, k):
     assert isinstance(args, VPair), "not enough arguments"
+    return args.car.evaluate(env, VContinuation(_time2, [VNumber(time.clock()), env, k]))
 
-    a = time.clock()
-    r = args.car.evaluate(env)
-    print(time.clock() - a)
-    return r
+def _time2(res, args):
+    started, env, k = args
+    assert isinstance(started, VNumber)
+    print(time.clock() - started.value)
+    return k.call(res)
 
-def _booleanp(args, env):
+def _booleanp(args, env, k):
     assert isinstance(args, VPair), "not enough arguments"
 
     if isinstance(args.car, VTrue) or \
             isinstance(args.car, VFalse):
-        return VTrue()
+        return k.call(VTrue())
     else:
-        return VFalse()
+        return k.call(VFalse())
 
-def _eqp(args, env):
+def _eqp(args, env, k):
     assert isinstance(args, VPair), "not enough arguments"
 
     if args.car.eq(args.cdr.car):
-        return VTrue()
+        return k.call(VTrue())
     else:
-        return VFalse()
+        return k.call(VFalse())
 
-def _equalp(args, env):
+def _equalp(args, env, k):
     assert isinstance(args, VPair), "not enough arguments"
 
     if args.car.equal(args.cdr.car):
-        return VTrue()
+        return k.call(VTrue())
     else:
-        return VFalse()
+        return k.call(VFalse())
 
-def _symbolp(args, env):
+def _symbolp(args, env, k):
     assert isinstance(args, VPair), "not enough arguments"
 
     if isinstance(args.car, VSymbol):
-        return VTrue()
+        return k.call(VTrue())
     else:
-        return VFalse()
+        return k.call(VFalse())
 
-def _stringp(args, env):
+def _stringp(args, env, k):
     assert isinstance(args, VPair), "not enough arguments"
 
     if isinstance(args.car, VString):
-        return VTrue()
+        return k.call(VTrue())
     else:
-        return VFalse()
+        return k.call(VFalse())
 
-def _inertp(args, env):
+def _inertp(args, env, k):
     assert isinstance(args, VPair), "not enough arguments"
 
     if isinstance(args.car, VInert):
-        return VTrue()
+        return k.call(VTrue())
     else:
-        return VFalse()
+        return k.call(VFalse())
 
-def _pairp(args, env):
+def _pairp(args, env, k):
     assert isinstance(args, VPair), "not enough arguments"
 
     if isinstance(args.car, VPair):
-        return VTrue()
+        return k.call(VTrue())
     else:
-        return VFalse()
+        return k.call(VFalse())
 
-def _nullp(args, env):
+def _nullp(args, env, k):
     assert isinstance(args, VPair), "not enough arguments"
 
     if isinstance(args.car, VNull):
-        return VTrue()
+        return k.call(VTrue())
     else:
-        return VFalse()
+        return k.call(VFalse())
 
-def _listp(args, env):
+def _listp(args, env, k):
     assert isinstance(args, VPair), "not enough arguments"
 
     if isinstance(args.car, VList):
-        return VTrue()
+        return k.call(VTrue())
     else:
-        return VFalse()
+        return k.call(VFalse())
 
-def _ignorep(args, env):
+def _ignorep(args, env, k):
     assert isinstance(args, VPair), "not enough arguments"
 
     if isinstance(args.car, VIgnore):
-        return VTrue()
+        return k.call(VTrue())
     else:
-        return VFalse()
+        return k.call(VFalse())
 
-def _numberp(args, env):
+def _numberp(args, env, k):
     assert isinstance(args, VPair), "not enough arguments"
 
     if isinstance(args.car, VNumber):
-        return VTrue()
+        return k.call(VTrue())
     else:
-        return VFalse()
+        return k.call(VFalse())
 
-def _operativep(args, env):
+def _operativep(args, env, k):
     assert isinstance(args, VPair), "not enough arguments"
 
     if isinstance(args.car, VOperative):
-        return VTrue()
+        return k.call(VTrue())
     else:
-        return VFalse()
+        return k.call(VFalse())
 
-def _applicativep(args, env):
+def _applicativep(args, env, k):
     assert isinstance(args, VPair), "not enough arguments"
 
     if isinstance(args.car, VApplicative):
-        return VTrue()
+        return k.call(VTrue())
     else:
-        return VFalse()
+        return k.call(VFalse())
 
-def _environmentp(args, env):
+def _environmentp(args, env, k):
     assert isinstance(args, VPair), "not enough arguments"
 
     if isinstance(args.car, VEnvironment):
-        return VTrue()
+        return k.call(VTrue())
     else:
-        return VFalse()
+        return k.call(VFalse())
 
-def _combinerp(args, env):
+def _combinerp(args, env, k):
     assert isinstance(args, VPair), "not enough arguments"
 
     if isinstance(args.car, VOperative) or \
             isinstance(args.car, VApplicative):
-        return VTrue()
+        return k.call(VTrue())
     else:
-        return VFalse()
+        return k.call(VFalse())
 
-def _cons(args, env):
+def _continuationp(args, env, k):
+    assert isinstance(args, VPair), "not enough arguments"
+
+    if isinstance(args.car, VContinuation):
+        return k.call(VTrue())
+    else:
+        return k.call(VFalse())
+
+def _cons(args, env, k):
     assert isinstance(args, VPair), "not enough arguments"
     assert isinstance(args.cdr, VPair), "not enough arguments"
-    return VPair(args.car, args.cdr.car)
+    return k.call(VPair(args.car, args.cdr.car))
 
-def _make_environment(args, env):
+def _make_environment(args, env, k):
     assert isinstance(args, VList), "non-list arguments"
-    return VEnvironment({}, args.to_list())
+    return k.call(VEnvironment({}, args.to_list()))
 
-def _bindsp(args, env):
+def _bindsp(args, env, k):
     assert isinstance(args, VPair), "not enough arguments"
+    return args.car.evaluate(env, VContinuation(_bindsp2, [args.cdr, env, k]))
 
-    where = args.car.evaluate(env)
+def _bindsp2(where, args):
+    syms, env, k = args
     assert isinstance(where, VEnvironment), "must be an environment"
 
-    syms = args.cdr
     while isinstance(syms, VPair):
         sym = syms.car
         if isinstance(sym, VSymbol):
             if not where.binds(sym.name):
-                return VFalse()
+                return k.call(VFalse())
 
         syms = syms.cdr
 
-    return VTrue()
+    return k.call(VTrue())
 
-def _max(args, env):
+def _max(args, env, k):
     assert isinstance(args, VPair), "not enough arguments"
 
     start = args.car
@@ -376,9 +418,9 @@ def _max(args, env):
 
         x = x.cdr
 
-    return max
+    return k.call(max)
 
-def _min(args, env):
+def _min(args, env, k):
     assert isinstance(args, VPair), "not enough arguments"
 
     start = args.car
@@ -396,33 +438,33 @@ def _min(args, env):
 
         x = x.cdr
 
-    return min
+    return k.call(min)
 
-def _load(args, env):
+def _load(args, env, k):
     assert isinstance(args, VPair), "not enough arguments"
 
     val = args.car
     assert isinstance(val, VString), "must be a string"
 
-    return load_file(val.value, env)
+    return load_file(val.value, env, k)
 
-def _string2symbol(args, env):
+def _string2symbol(args, env, k):
     assert isinstance(args, VPair), "not enough arguments"
 
     val = args.car
     assert isinstance(val, VString), "must be a string"
 
-    return VSymbol(val.value)
+    return k.call(VSymbol(val.value))
 
-def _symbol2string(args, env):
+def _symbol2string(args, env, k):
     assert isinstance(args, VPair), "not enough arguments"
 
     val = args.car
     assert isinstance(val, VSymbol), "must be a symbol"
 
-    return VString(val.name)
+    return k.call(VString(val.name))
 
-def _join(args, env):
+def _join(args, env, k):
     assert isinstance(args, VPair), "non-list arguments"
 
     val = args.car
@@ -440,7 +482,7 @@ def _join(args, env):
 
         vals = vals.cdr
 
-    return VString(delim.join(strs))
+    return k.call(VString(delim.join(strs)))
 
 
 Ground = {
@@ -458,6 +500,7 @@ Ground = {
     "operative?": VApplicative(VCoreOperative(_operativep)),
     "applicative?": VApplicative(VCoreOperative(_applicativep)),
     "combiner?": VApplicative(VCoreOperative(_combinerp)),
+    "continuation?": VApplicative(VCoreOperative(_continuationp)),
 
     # equality
     "eq?": VApplicative(VCoreOperative(_eqp)),
@@ -488,10 +531,15 @@ Ground = {
     ">=?": VApplicative(VCoreOperative(_gte)),
 
     # misc
-    "print": VApplicative(VCoreOperative(_print)),
     "if": VCoreOperative(_if),
-    "time": VCoreOperative(_time),
     "load": VApplicative(VCoreOperative(_load)),
+    "print": VApplicative(VCoreOperative(_print)),
+    "time": VCoreOperative(_time),
+
+    # continuations
+    "call/cc": VApplicative(VCoreOperative(_callcc)),
+    "apply-continuation": VApplicative(VCoreOperative(_apply_continuation)),
+    "extend-continuation": VApplicative(VCoreOperative(_extend_continuation)),
 
     # string
     "string->symbol": VApplicative(VCoreOperative(_string2symbol)),
@@ -500,10 +548,10 @@ Ground = {
 }
 
 
-def _make_encapsulation_tag(args, env):
-    return VEncapsulationTag()
+def _make_encapsulation_tag(args, env, k):
+    return k.call(VEncapsulationTag())
 
-def _make_encapsulation(args, env):
+def _make_encapsulation(args, env, k):
     assert isinstance(args, VPair), "not enough arguments"
     assert isinstance(args.cdr, VPair), "not enough arguments"
     assert isinstance(args.car, VEncapsulationTag), "must be an encapsulation tag"
@@ -511,9 +559,9 @@ def _make_encapsulation(args, env):
     tag = args.car
     assert isinstance(tag, VEncapsulationTag)
 
-    return VEncapsulation(tag, args.cdr.car)
+    return k.call(VEncapsulation(tag, args.cdr.car))
 
-def _encapsulation_taggedp(args, env):
+def _encapsulation_taggedp(args, env, k):
     assert isinstance(args, VPair), "not enough arguments"
     assert isinstance(args.cdr, VPair), "not enough arguments"
     assert isinstance(args.car, VEncapsulationTag), "must be an encapsulation tag"
@@ -522,11 +570,11 @@ def _encapsulation_taggedp(args, env):
     val = args.cdr.car
 
     if isinstance(val, VEncapsulation) and val.tag is tag:
-        return VTrue()
+        return k.call(VTrue())
     else:
-        return VFalse()
+        return k.call(VFalse())
 
-def _deconstruct_encapsulation(args, env):
+def _deconstruct_encapsulation(args, env, k):
     assert isinstance(args, VPair), "not enough arguments"
     assert isinstance(args.cdr, VPair), "not enough arguments"
     assert isinstance(args.car, VEncapsulationTag), "must be an encapsulation tag"
@@ -536,7 +584,7 @@ def _deconstruct_encapsulation(args, env):
     assert isinstance(val, VEncapsulation), "must be an encapsulation"
     assert val.tag is tag, "encapsulation type mismatch"
 
-    return val.value
+    return k.call(val.value)
 
 
 Encapsulation = {
@@ -547,15 +595,15 @@ Encapsulation = {
 }
 
 
-def load_kernel(which, env):
-    return load_file("kernel/%s" % which, env)
+def load_kernel(which, env, k):
+    return load_file("kernel/%s" % which, env, k)
 
 
 def load():
     ground = VEnvironment(Ground)
-    load_kernel('boot.pmc', ground)
-    load_kernel('encapsulation.pmc', VEnvironment(Encapsulation, [ground]))
-    load_kernel('record.pmc', ground)
-    load_kernel('object.pmc', ground)
-    load_kernel('class.pmc', ground)
+    load_kernel('boot.pmc', ground, ignore)
+    load_kernel('encapsulation.pmc', VEnvironment(Encapsulation, [ground]), ignore)
+    load_kernel('record.pmc', ground, ignore)
+    load_kernel('object.pmc', ground, ignore)
+    load_kernel('class.pmc', ground, ignore)
     return ground
