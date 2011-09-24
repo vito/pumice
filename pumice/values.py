@@ -316,6 +316,6 @@ def show_pair(what):
         elif isinstance(what.cdr, VNull):
             return what.car.show()
         else:
-            return "%s . %s" % (what.car, what.cdr.show())
+            return "%s . %s" % (what.car.show(), what.cdr.show())
     else:
         return what.show()
