@@ -21,18 +21,15 @@ class VContinuation(VValue):
         self.args = args
         self.applied = None
 
-    def is_ready(self):
-        if self.applied:
-            return True
-        else:
-            return False
-
     def call(self, val):
         self.applied = val
         return self
 
     def go(self):
-        return self.cont(self.applied, self.args)
+        if self.applied:
+            return self.cont(self.applied, self.args)
+        else:
+            return self
 
     def extend(self, app, env):
         return VExtendedContinuation(self, app, env)
@@ -43,20 +40,17 @@ class VExtendedContinuation(VContinuation):
         self.parent = parent
         self.operative = applicative.unwrap()
         self.env = env
-
-    def is_ready(self):
-        return self.parent.is_ready()
-
-    def call(self, val):
-        self.parent.call(val)
-        return self
+        self.applied = None
 
     def go(self):
-        return self.operative.apply(
-            self.env,
-            VPair(self.parent.applied, VNull()),
-            VContinuation(_callParent, [self.parent])
-        )
+        if self.applied:
+            return self.operative.apply(
+                self.env,
+                VPair(self.applied, VNull()),
+                VContinuation(_callParent, [self.parent])
+            )
+        else:
+            return self
 
 def _callParent(val, k):
     return k[0].call(val)

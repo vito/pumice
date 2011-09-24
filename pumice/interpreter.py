@@ -18,7 +18,7 @@ def load_source(source, env, k):
     return trampoline(parse(source).evaluate(env, k))
 
 def trampoline(v):
-    while isinstance(v, VContinuation) and v.is_ready():
+    while isinstance(v, VContinuation):
         v = v.go()
 
     return v
